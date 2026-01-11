@@ -52,8 +52,9 @@ npx nx run twenty-server:command seed-spoon:seed-objects -- -w YOUR_WORKSPACE_ID
 | File | Description |
 |------|-------------|
 | `.env.seed-spoon.example` | Environment configuration template |
-| `vercel.seed-spoon.json` | Vercel deployment config |
+| `docker-compose.seed-spoon.yml` | Production Docker deployment |
 | `docs/seed-spoon/README.md` | Full documentation |
+| `docs/seed-spoon/DEPLOYMENT.md` | Deployment guide |
 
 ## Custom Objects Location
 
@@ -64,13 +65,32 @@ packages/twenty-server/src/engine/workspace-manager/dev-seeder/metadata/
 └── seed-spoon/                           # Seeder service
 ```
 
-## Deploy to Vercel
+## Production Deployment
 
-1. Push to GitHub
-2. Import in Vercel
-3. Set environment variables from `.env.seed-spoon.example`
-4. Deploy!
+**Note:** Twenty requires native dependencies and a persistent server. Vercel's serverless architecture is NOT compatible.
+
+### Recommended: Docker Deployment
+
+```bash
+# Copy environment file
+cp .env.seed-spoon.example .env
+
+# Edit with your credentials
+nano .env
+
+# Start all services
+docker-compose -f docker-compose.seed-spoon.yml up -d
+```
+
+### Alternative Platforms
+
+- **Railway** - One-click deployment with native dependencies
+- **Render** - Docker-based deployment
+- **DigitalOcean App Platform** - Container deployment
+
+See [docs/seed-spoon/DEPLOYMENT.md](docs/seed-spoon/DEPLOYMENT.md) for detailed instructions.
 
 ## Need Help?
 
-See [docs/seed-spoon/README.md](docs/seed-spoon/README.md) for full documentation.
+- Full documentation: [docs/seed-spoon/README.md](docs/seed-spoon/README.md)
+- Deployment guide: [docs/seed-spoon/DEPLOYMENT.md](docs/seed-spoon/DEPLOYMENT.md)

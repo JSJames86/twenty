@@ -1,0 +1,151 @@
+version: '3.8'
+
+# Seed & Spoon Production Docker Compose
+# Deploy Twenty CRM configured for nonprofit operations
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: seed-spoon-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-twenty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-twenty}
+      POSTGRES_DB: ${POSTGRES_DB:-twenty}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - twenty-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-twenty}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: seed-spoon-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - twenty-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Twenty Server (Backend API)
+  twenty-server:
+    image: twentycrm/twenty:latest
+    container_name: seed-spoon-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgres://${POSTGRES_USER:-twenty}:${POSTGRES_PASSWORD:-twenty}@postgres:5432/${POSTGRES_DB:-twenty}
+
+      # Redis
+      REDIS_URL: redis://redis:6379
+
+      # Server
+      NODE_ENV: production
+      PORT: 3000
+      SERVER_URL: ${SERVER_URL:-http://localhost:3000}
+
+      # Frontend URL
+      FRONT_BASE_URL: ${FRONT_BASE_URL:-http://localhost:3001}
+
+      # Authentication Secrets (CHANGE THESE IN PRODUCTION!)
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-change-me-access-token-secret}
+      LOGIN_TOKEN_SECRET: ${LOGIN_TOKEN_SECRET:-change-me-login-token-secret}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-change-me-refresh-token-secret}
+      FILE_TOKEN_SECRET: ${FILE_TOKEN_SECRET:-change-me-file-token-secret}
+
+      # Token Expiration
+      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN:-3600}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-2592000}
+      LOGIN_TOKEN_EXPIRES_IN: ${LOGIN_TOKEN_EXPIRES_IN:-900}
+
+      # Security
+      SIGN_IN_PREFILLED: ${SIGN_IN_PREFILLED:-false}
+      AUTH_PASSWORD_ENABLED: ${AUTH_PASSWORD_ENABLED:-true}
+
+      # Storage
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: /app/storage
+
+      # Email (optional)
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@seedandspoon.org}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Seed & Spoon Admin}
+
+      # Telemetry
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
+
+      # Seed & Spoon Integration
+      SEED_SPOON_API_URL: ${SEED_SPOON_API_URL:-}
+      ADMIN_SERVICE_TOKEN: ${ADMIN_SERVICE_TOKEN:-}
+
+      # Features
+      IS_BILLING_ENABLED: false
+      IS_MULTIWORKSPACE_ENABLED: false
+    volumes:
+      - server_storage:/app/storage
+    ports:
+      - "3000:3000"
+    networks:
+      - twenty-network
+    command: ["node", "packages/twenty-server/dist/src/main.js"]
+
+  # Twenty Worker (Background Jobs)
+  twenty-worker:
+    image: twentycrm/twenty:latest
+    container_name: seed-spoon-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-twenty}:${POSTGRES_PASSWORD:-twenty}@postgres:5432/${POSTGRES_DB:-twenty}
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
+    networks:
+      - twenty-network
+    command: ["node", "packages/twenty-server/dist/src/queue-worker/queue-worker.js"]
+
+  # Twenty Frontend
+  twenty-front:
+    image: twentycrm/twenty-front:latest
+    container_name: seed-spoon-front
+    restart: unless-stopped
+    depends_on:
+      - twenty-server
+    environment:
+      REACT_APP_SERVER_BASE_URL: ${SERVER_URL:-http://localhost:3000}
+    ports:
+      - "3001:3000"
+    networks:
+      - twenty-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  server_storage:
+    driver: local
+
+networks:
+  twenty-network:
+    driver: bridge
