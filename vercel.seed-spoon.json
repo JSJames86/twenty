@@ -1,0 +1,68 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "name": "seed-spoon-twenty-admin",
+  "buildCommand": "npx nx build twenty-front --configuration=production && npx nx build twenty-server --configuration=production",
+  "outputDirectory": "packages/twenty-front/dist",
+  "installCommand": "yarn install",
+  "framework": null,
+  "functions": {
+    "packages/twenty-server/dist/src/main.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/packages/twenty-server/dist/src/main.js"
+    },
+    {
+      "src": "/rest/(.*)",
+      "dest": "/packages/twenty-server/dist/src/main.js"
+    },
+    {
+      "src": "/graphql",
+      "dest": "/packages/twenty-server/dist/src/main.js"
+    },
+    {
+      "src": "/metadata",
+      "dest": "/packages/twenty-server/dist/src/main.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "NX_DAEMON": "false"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "regions": ["iad1"]
+}
